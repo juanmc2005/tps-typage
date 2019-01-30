@@ -9,15 +9,12 @@ import Data.List
 import qualified Data.Map as Map
 
 
--- program1 is: fix (\fact: int->int . (\x: int . if x then 1 else fact 0))
--- program2 is: let f = \y: int . y in f (f 1)
--- program3 is: let f = \y: int . y in (f f) 1
 main = do
-    putStr "Program 1: Fix of (almost) Factorial - Type: "
+    putStr "fix (λfact: int->int . (λx: int . if x then 1 else fact 0)) ----typing---> "
     putStrLn $ prettyTypeString $ ptype Map.empty program1
-    putStr "Program 2: Let f (f 1) - Type: "
+    putStr "let f = λy: int . y in f (f 1) ----typing---> "
     putStrLn $ prettyTypeString $ ptype Map.empty program2
-    putStr "Program 3: Let (f f) 1 - Type: "
+    putStr "let f = λy: int . y in (f f) 1 ----typing---> "
     putStrLn $ prettyTypeString $ ptype Map.empty program3
     where
         tIntToInt = TFunction TInt TInt
