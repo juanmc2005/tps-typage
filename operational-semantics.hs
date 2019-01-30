@@ -27,7 +27,7 @@ type Subst = [(Int, Program)]
 -- Takes a program and returns whether it's a lazy form
 isLazyForm :: Program -> Bool
 isLazyForm (Const _)    = True
-isLazyForm (Var _)      = True -- ?? What to do avec variables?
+isLazyForm (Var _)      = True -- ?? What to do with variables?
 isLazyForm (Lambda _ _) = True
 isLazyForm (Fix _)      = True
 isLazyForm _            = False
