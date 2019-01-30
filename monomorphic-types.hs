@@ -8,6 +8,24 @@ import Data.Maybe
 import Data.List
 import qualified Data.Map as Map
 
+
+-- program1 is: fix (\fact: int->int . (\x: int . if x then 1 else fact 0))
+-- program2 is: let f = \y: int . y in f (f 1)
+-- program3 is: let f = \y: int . y in (f f) 1
+main = do
+    putStr "Program 1: Fix of (almost) Factorial - Type: "
+    putStrLn $ prettyTypeString $ ptype Map.empty program1
+    putStr "Program 2: Let f (f 1) - Type: "
+    putStrLn $ prettyTypeString $ ptype Map.empty program2
+    putStr "Program 3: Let (f f) 1 - Type: "
+    putStrLn $ prettyTypeString $ ptype Map.empty program3
+    where
+        tIntToInt = TFunction TInt TInt
+        body      = IfElse (Var 1) (Const 1) (Applic (Var 0) (Const 0))
+        program1   = Fix (Lambda 0 tIntToInt (Lambda 1 TInt body))
+        program2   = LetIn 0 tIntToInt (Lambda 1 TInt (Var 1)) (Applic (Var 0) (Applic (Var 0) (Const 1)))
+        program3   = LetIn 0 tIntToInt (Lambda 1 TInt (Var 1)) (Applic (Applic (Var 0) (Var 0)) (Const 1))
+
 -- Definition of a program
 data Program = Const Int
              | Var Int
@@ -20,11 +38,17 @@ data Program = Const Int
              deriving Show
 
 -- Definition of a type
-data Type = TInt | TBool | TPair Type Type | TFunction Type Type deriving (Show, Eq)
+data Type = TInt | TBool | TPair Type Type | TFunction Type Type deriving Eq
+instance Show Type where
+    show TInt            = "Int"
+    show TBool           = "Bool"
+    show (TPair a b)     = "(" ++ show a ++ ", " ++ show b ++ ")"
+    show (TFunction a b) = show a ++ " -> " ++ show b
 
 -- Type alias for a type environment: a map from variables (int codes, as in Var Int) to types
 type TypeEnv = Map.Map Int Type
 
+-- Boolean constants
 true  = -2
 false = -1
 
@@ -32,14 +56,24 @@ false = -1
 ptype :: TypeEnv -> Program -> Maybe Type
 ptype _   (Const c)           = Just (consttype c)
 ptype env (Var v)             = Map.lookup v env
-ptype env (Applic m n)        = do { mtype <- ptype env m ; ntype <- ptype env n ; applictype mtype ntype }
+ptype env (Applic m n)        = do mtype <- ptype env m
+                                   ntype <- ptype env n
+                                   applictype mtype ntype
 ptype env (Lambda v vtype m)  = let newenv = Map.insert v vtype env in
-                                do { mtype <- ptype newenv m ; Just $ TFunction vtype mtype }
-ptype env (Pair m n)          = do { mtype <- ptype env m ; ntype <- ptype env n ; Just $ TPair mtype ntype }
+                                  do mtype <- ptype newenv m
+                                     Just $ TFunction vtype mtype
+ptype env (Pair m n)          = do mtype <- ptype env m
+                                   ntype <- ptype env n
+                                   Just $ TPair mtype ntype
 ptype env (LetIn v vtype m n) = let newenv = Map.insert v vtype env in
-                                do { mtype <- ptype env m ; ntype <- ptype newenv n ; letintype vtype mtype ntype }
-ptype env (Fix m)             = do { mtype <- ptype env m ; fixtype mtype }
--- TODO if else
+                                  do mtype <- ptype env m
+                                     ntype <- ptype newenv n
+                                     letintype vtype mtype ntype
+ptype env (Fix m)             = do mtype <- ptype env m
+                                   fixtype mtype
+ptype env (IfElse _ m n)      = do mtype <- ptype env m
+                                   ntype <- ptype env n
+                                   ifelsetype mtype ntype
 
 -- Calculate the type of a given constant (int code, as in Const Int)
 consttype :: Int -> Type
@@ -62,5 +96,11 @@ fixtype :: Type -> Maybe Type
 fixtype (TFunction a b) = Just a
 fixtype _               = Nothing
 
+-- Calculate the type of an 'if else' expression given the types of the condition, true branch and false branch
+ifelsetype :: Type -> Type -> Maybe Type
+ifelsetype tif telse = if tif == telse then Just tif else Nothing
 
-main = print "Unfinished"
+-- Return a pretty string to explain the result of a typing validation
+prettyTypeString :: Maybe Type -> String
+prettyTypeString (Just t) = show t
+prettyTypeString Nothing  = "Type Error"
