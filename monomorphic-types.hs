@@ -27,6 +27,6 @@ type TypeEnv = Map Int Type
 true  = -2
 false = -1
 
--- Calculate the type of a given program in a 
-ptype :: Program -> Type
--- TODO
+-- Calculate the type of a given program in a given type environment
+ptype :: TypeEnv -> Program -> Type
+

@@ -41,17 +41,11 @@ evalByName prog = if isLazyForm prog then Just prog else reductionByName prog
 reductionByName :: Program -> Maybe Program
 reductionByName (Applic (Lambda var m) n) = evalByName $ substitute [(var, n)] m
 reductionByName (Applic (Fix m) n)        = evalByName (Applic (Applic m (Fix m)) n)
-reductionByName (Applic m n)              = if isJust mEval
-                                            then reductionByName $ Applic (fromJust mEval) n
-                                            else Nothing
-                                          where mEval = reductionByName m
+reductionByName (Applic m n)              = do { mEval <- reductionByName m ; reductionByName $ Applic mEval n }
 reductionByName (LetIn x m l)             = evalByName $ substitute [(x, m)] l
 reductionByName (IfElse (Const (-2)) n l) = evalByName n
 reductionByName (IfElse (Const (-1)) n l) = evalByName l
-reductionByName (IfElse expr n l)         = if isJust cond
-                                            then evalByName $ IfElse (fromJust cond) n l
-                                            else Nothing
-                                          where cond = evalByName expr
+reductionByName (IfElse expr n l)         = do { cond <- evalByName expr ; evalByName $ IfElse cond n l }
 reductionByName _                         = Nothing
 
 -- Applies a given substitution to a given expression
@@ -63,8 +57,7 @@ substitute sub (Const c)         = Const c
 substitute sub (LetIn v p1 p2)   = LetIn v (substitute sub p1) (substitute subWithoutV p2)
                                  where subWithoutV = filter (\p -> (fst p) /= v) sub
 substitute sub (IfElse p1 p2 p3) = IfElse (substitute sub p1) (substitute sub p2) (substitute sub p3)
-substitute sub (Var v)           = if isJust repl then fromJust repl else Var v
-                                 where repl = findProg sub v
+substitute sub (Var v)           = fromMaybe (Var v) $ findProg sub v
 
 -- Find the expression that substitutes a given character in a substitution
 findProg :: Subst -> Int -> Maybe Program
