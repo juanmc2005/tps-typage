@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------
---------------------------------------- Monomorphic Typing Algorithm ---------------------------------------
+----------------------------------- TP2 Ex2 Monomorphic Typing Algorithm -----------------------------------
 ------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------
 
@@ -28,5 +28,13 @@ true  = -2
 false = -1
 
 -- Calculate the type of a given program in a given type environment
-ptype :: TypeEnv -> Program -> Type
+ptype :: TypeEnv -> Program -> Maybe Type
+ptype _   (Const c) = Just (consttype c)
+ptype env (Var v)   = Map.lookup v env
+-- TODO complete with recursive cases
 
+-- Calculate the type of a given constant (int code, as in Const Int)
+consttype :: Int -> Type
+consttype -2 = TBool
+consttype -1 = TBool
+consttype _  = TInt
