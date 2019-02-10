@@ -29,20 +29,32 @@ type EquationSystem = Set Equation
 type Substitution = [(Int, Type)]
 
 
--- Unification algorithm for an equation
+-- Unification algorithm
+-- unify :: EquationSystem -> Maybe Substitution
+
+-- Perform a step of the unification algorithm for an equation
 unificationStep :: EquationSystem -> Equation -> EquationSystem
 -- Exchange rule
 unificationStep eqs (t, TVar v)                         = Set.insert (TVar v, t) eqs
 -- Decomposition rule for pairs
 unificationStep eqs (TPair s1 s2, TPair t1 t2)          = Set.union eqs $ Set.fromList [(s1, t1), (s2, t2)]
 -- Decomposition rule for functions
-unificationStep eqs (TFunction s1 s2, TFunction t1 t2) = Set.union eqs $ Set.fromList [(s1, t1), (s2, t2)]
+unificationStep eqs (TFunction s1 s2, TFunction t1 t2)  = Set.union eqs $ Set.fromList [(s1, t1), (s2, t2)]
 -- Replacement rule
 unificationStep eqs (TVar v, s)                         = if not (hasVar v s)
                                                           then Set.insert (TVar v, s) $ substituteEqSystem [(v, s)] eqs
                                                           else Set.insert (TVar v, s) eqs
 -- Elimination rule
 unificationStep eqs (t1, t2)                            = if t1 == t2 then eqs else Set.insert (t1, t2) eqs
+
+-- Checks if an equation system is in solved form
+isSolved :: EquationSystem -> Bool
+isSolved eqs = Set.foldr (&&) True (Set.map isSolvedForm eqs)
+
+-- Checks if an equation is in solved form
+isSolvedForm :: Equation -> Bool
+isSolvedForm (TVar _, term) = vars term == 0
+isSolvedForm _              = False
 
 -- Applies a substitution to an equation system
 substituteEqSystem :: Substitution -> EquationSystem -> EquationSystem
@@ -66,13 +78,21 @@ findTerm sub v = fmap snd $ find (\x -> (fst x) == v) sub
 
 -- Checks if a variable (Int as in TVar Int) appears in a term (Type)
 hasVar :: Int -> Type -> Bool
-hasVar v TInt              = False
-hasVar v TBool             = False
+hasVar _ TInt              = False
+hasVar _ TBool             = False
 hasVar v (TVar x)          = v == x
 hasVar v (TPair t1 t2)     = hasVar v t1 || hasVar v t2
 hasVar v (TFunction t1 t2) = hasVar v t1 || hasVar v t2
 
+-- Count the variables in a term
+vars :: Type -> Int
+vars TBool             = 0
+vars TInt              = 0
+vars (TVar _)          = 1
+vars (TPair t1 t2)     = vars t1 + vars t2
+vars (TFunction t1 t2) = vars t1 + vars t2
+
 
 ---------------------------------------------------------------------------------------------------
 
-main = print "Hello!"
+main = print $ isSolved $ Set.fromList [(TVar 10, TFunction TInt TBool), ((TVar 2), TPair TInt TInt)]
