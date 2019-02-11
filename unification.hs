@@ -31,11 +31,10 @@ type Substitution = [Mapping]
 
 
 -- Unification algorithm
-unify :: EquationSystem -> Bool
-unify eqs = if isSolved eqs
-              then True
-              else let newEqs = eqSysUnificationStep eqs in
-                     if isJust newEqs then unify $ fromJust newEqs else False
+unify :: EquationSystem -> Maybe Substitution
+unify eqs = let maybeSolution = toSubstitution eqs in
+              if isJust maybeSolution then maybeSolution else let newEqs = eqSysUnificationStep eqs in
+                if isJust newEqs then unify $ fromJust newEqs else Nothing
 
 -- Perform a single step of unification with the first equation that allows for it in an equation system
 eqSysUnificationStep :: EquationSystem -> Maybe EquationSystem
