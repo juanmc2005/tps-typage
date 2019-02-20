@@ -1,8 +1,13 @@
 ------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------
---------------------------------------- TP2 Ex3 Unification Algorithm --------------------------------------
+----------------------------------------------- Unification ------------------------------------------------
 ------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------
+
+module JMTypes (
+    Type(TInt, TBool, TVar, TPair, TFunction),
+    Equation, EquationSystem, Mapping, Substitution,
+    unify, isSolved, isSolvedForm) where
 
 import Data.List
 import Data.Maybe
@@ -18,13 +23,11 @@ instance Show Type where
 
 -- Definition of an equation
 type Equation = (Type, Type)
-
 -- Definition of an equation system
 type EquationSystem = [Equation]
 
 -- Definition of a mapping
 type Mapping = (Int, Type)
-
 -- Definition of a substitution: a set of variable to type pairs,
 -- where the variable is represented as an Int (as in TVar Int)
 type Substitution = [Mapping]
@@ -70,7 +73,7 @@ isSolvedForm _              = False
 toSubstitution :: EquationSystem -> Maybe Substitution
 toSubstitution eqs = if isSolved eqs then Just $ map (fromJust . toMapping) eqs else Nothing
 
--- Transforms an equation into a substitution
+-- Transforms an equation into a substitution mapping
 toMapping :: Equation -> Maybe Mapping
 toMapping (TVar v, term) = Just (v, term)
 toMapping _              = Nothing
@@ -118,10 +121,3 @@ vars TInt              = 0
 vars (TVar _)          = 1
 vars (TPair t1 t2)     = vars t1 + vars t2
 vars (TFunction t1 t2) = vars t1 + vars t2
-
-
----------------------------------------------------------------------------------------------------
-
-main = print $ unify eqs
-         where 
-            eqs = [(TVar 0, TVar 1), (TVar 2, TVar 3), (TVar 3, TInt), (TVar 4, TFunction (TInt) (TVar 1)), (TVar 1, TInt)]
