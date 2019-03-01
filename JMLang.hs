@@ -1,6 +1,6 @@
 module JMLang where
 
-import JMTypes
+import JMTypesRec
 import Data.List
 import Data.Maybe
 import Data.Set (Set)
@@ -92,12 +92,37 @@ true = Const (-2)
 andAnd = Const (-3)
 isZero = Const (-4)
 
+-- λx . x x
+omegacomb = Lambda 100 (Applic (Var 100) (Var 100))
 -- λx . f (x x)
 ycombBody = Lambda 201 (Applic (Var 200) (Applic (Var 201) (Var 201)))
 -- λf . (λx . f (x x)) (λx . f (x x))
 ycomb = Lambda 200 (Applic ycombBody ycombBody)
 
-main = print $ unify eqs
+a = TRec 50 (TFunction (TVar 50) (TVar 50))
+aArrowA = TFunction a a
+
+main = do
+--       print $ typeEquals a aArrowA
+       print $ unify eqs
+       print eqs1
+       print eqs2
+       print eqs3
+       print eqs4
+       print eqs5
        where
-         eqs = toEquationSystem ycomb
---       eqs = toEquationSystem $ Applic (Lambda 20 (Applic isZero (Var 20))) (Const 10)
+         eqs = toEquationSystem omegacomb
+         eqs1 = fromJust $ eqSysUnificationStep eqs
+         eqs2 = fromJust $ eqSysUnificationStep eqs1
+         eqs3 = fromJust $ eqSysUnificationStep eqs2
+         eqs4 = fromJust $ eqSysUnificationStep eqs3
+         eqs5 = fromJust $ eqSysUnificationStep eqs4
+         eqs6 = fromJust $ eqSysUnificationStep eqs5
+         eqs7 = fromJust $ eqSysUnificationStep eqs6
+         eqs8 = fromJust $ eqSysUnificationStep eqs7
+         eqs9 = fromJust $ eqSysUnificationStep eqs8
+         eqs10 = fromJust $ eqSysUnificationStep eqs9
+         eqs11 = fromJust $ eqSysUnificationStep eqs10
+         eqs12 = fromJust $ eqSysUnificationStep eqs11
+         eqs13 = fromJust $ eqSysUnificationStep eqs12
+--         eqs = toEquationSystem $ Applic (Lambda 20 (Applic isZero (Var 20))) (Const 10)
