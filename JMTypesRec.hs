@@ -7,7 +7,7 @@
 module JMTypesRec (
     Type(TInt, TBool, TVar, TPair, TFunction, TRec),
     Equation, EquationSystem, Mapping, Substitution,
-    unify, isSolved, isSolvedForm, eqSysUnificationStep, typeEquals) where
+    unify, isSolved, isSolvedForm, eqSysUnificationStep, typeEquals, eqSysHasVar) where
 
 import Data.List
 import Data.Maybe
@@ -53,12 +53,11 @@ eqUnificationStep eqs (t1, t2) = if t1 == t2 then Just eqs else applyUnification
 
 -- Apply a unification rule other than elimination
 applyUnificationRule :: EquationSystem -> Equation -> Maybe EquationSystem
-applyUnificationRule eqs (TVar v, s)                        = if eqSysHasVar v eqs then
-                                                                if not (hasVar v s) then -- Replacement
-                                                                  if not (isRecursive s) then
-                                                                    Just $ (TVar v, s):(substituteEqSystem [(v, s)] eqs)
-                                                                  else Nothing
-                                                                else Just $ (TVar v, (TRec v s)):(substituteEqSystem [(v, s)] eqs)
+applyUnificationRule eqs (TVar v, s)                        = if eqSysHasVar v eqs then -- Replacement
+                                                                if not (isRecursive s) then
+                                                                  if hasVar v s then Just $ (TVar v, TRec v s):eqs
+                                                                  else Just $ (TVar v, s):(substituteEqSystem [(v, s)] eqs)
+                                                                else Just $ substituteEqSystem [(v, s)] eqs
                                                               else Nothing
 applyUnificationRule eqs (t, TVar v)                        = Just $ (TVar v, t):eqs             -- Exchange
 applyUnificationRule eqs (TPair s1 s2, TPair t1 t2)         = Just $ [(s1, t1), (s2, t2)] ++ eqs -- Decomposition
@@ -67,11 +66,31 @@ applyUnificationRule _   _                                  = Nothing
 
 -- Checks if an equation system is in solved form
 isSolved :: EquationSystem -> Bool
-isSolved eqs = foldr (&&) True (map isSolvedForm eqs)
+isSolved eqs = if areAllLeftVars eqs then noTermHasVars vars terms else False
+               where
+                 vars = map (varId . fst) eqs
+                 terms = map snd eqs
+
+-- Checks if all left sides of an equation system are var types
+areAllLeftVars :: EquationSystem -> Bool
+areAllLeftVars eqs = foldr (&&) True $ map (isVar . fst) eqs
+
+-- Checks if no type variables from a given list appear in a list of types
+noTermHasVars :: [Int] -> [Type] -> Bool
+noTermHasVars (v:vs) ts = (noTermHasVar v ts) && (noTermHasVars vs ts)
+noTermHasVars [] _ = True
+
+-- Checks if no type in a list of types contains a given variable
+noTermHasVar :: Int -> [Type] -> Bool
+noTermHasVar v ts = not (someTermHasVar v ts)
+
+-- Checks if a type in a list of types contains a type variable
+someTermHasVar :: Int -> [Type] -> Bool
+someTermHasVar v ts = foldr (||) False (map (hasVar v) ts)
 
 -- Checks if an equation is in solved form
 isSolvedForm :: Equation -> Bool
-isSolvedForm (TVar _, term)     = vars term == 0
+isSolvedForm (TVar v, term)     = not (hasVar v term)
 isSolvedForm _                  = False
 
 -- Transforms an equation system into a substitution
@@ -144,6 +163,16 @@ varsRec seen (TRec v t)        = varsRec (v:seen) t
 isRecursive :: Type -> Bool
 isRecursive (TRec _ _) = True
 isRecursive _          = False
+
+-- Check if a type is a type variable
+isVar :: Type -> Bool
+isVar (TVar _) = True
+isVar _ = False
+
+-- Get id for a TVar
+varId :: Type -> Int
+varId (TVar x) = x
+varId _ = error "Can't get the identifier of a non var type"
 
 -- Check if two types are equal according to the coinductive definition
 typeEquals :: Type -> Type -> Bool

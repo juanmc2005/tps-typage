@@ -87,6 +87,9 @@ constType _    = TInt
 
 -------------------------------------------------------------
 
+unifyN :: Int -> EquationSystem -> EquationSystem
+unifyN n eqs = if n == 0 then eqs else unifyN (n-1) $ fromMaybe [] $ eqSysUnificationStep eqs
+
 false = Const (-1)
 true = Const (-2)
 andAnd = Const (-3)
@@ -105,24 +108,9 @@ aArrowA = TFunction a a
 main = do
 --       print $ typeEquals a aArrowA
        print $ unify eqs
-       print eqs1
-       print eqs2
-       print eqs3
-       print eqs4
-       print eqs5
+       print $ unifyN 1 eqs
+       putStrLn "..."
+       print $ unifyN 20 eqs
        where
-         eqs = toEquationSystem omegacomb
-         eqs1 = fromJust $ eqSysUnificationStep eqs
-         eqs2 = fromJust $ eqSysUnificationStep eqs1
-         eqs3 = fromJust $ eqSysUnificationStep eqs2
-         eqs4 = fromJust $ eqSysUnificationStep eqs3
-         eqs5 = fromJust $ eqSysUnificationStep eqs4
-         eqs6 = fromJust $ eqSysUnificationStep eqs5
-         eqs7 = fromJust $ eqSysUnificationStep eqs6
-         eqs8 = fromJust $ eqSysUnificationStep eqs7
-         eqs9 = fromJust $ eqSysUnificationStep eqs8
-         eqs10 = fromJust $ eqSysUnificationStep eqs9
-         eqs11 = fromJust $ eqSysUnificationStep eqs10
-         eqs12 = fromJust $ eqSysUnificationStep eqs11
-         eqs13 = fromJust $ eqSysUnificationStep eqs12
+         eqs = toEquationSystem ycomb
 --         eqs = toEquationSystem $ Applic (Lambda 20 (Applic isZero (Var 20))) (Const 10)
