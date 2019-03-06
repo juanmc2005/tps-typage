@@ -7,7 +7,7 @@
 module JMTypesRec (
     Type(TInt, TBool, TVar, TPair, TFunction, TRec),
     Equation, EquationSystem, Mapping, Substitution,
-    unify, isSolved, isSolvedForm, eqSysUnificationStep, typesEqual, eqSysHasVar) where
+    unify, isSolved, isSolvedForm, typesEqual) where
 
 import Data.List
 import Data.Maybe
@@ -33,6 +33,10 @@ type Mapping = (Int, Type)
 -- where the variable is represented as an Int (as in TVar Int)
 type Substitution = [Mapping]
 
+
+-- Perform n steps of the unification algorithm (useful for debugging)
+unifyN :: Int -> EquationSystem -> EquationSystem
+unifyN n eqs = if n == 0 then eqs else unifyN (n-1) $ fromMaybe [] $ eqSysUnificationStep eqs
 
 -- Unification algorithm
 unify :: EquationSystem -> Maybe Substitution
