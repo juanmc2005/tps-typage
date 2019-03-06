@@ -101,16 +101,28 @@ omegacomb = Lambda 100 (Applic (Var 100) (Var 100))
 ycombBody = Lambda 201 (Applic (Var 200) (Applic (Var 201) (Var 201)))
 -- λf . (λx . f (x x)) (λx . f (x x))
 ycomb = Lambda 200 (Applic ycombBody ycombBody)
+-- λx . λy . (x, y)
+toPair = Lambda 50 (Lambda 51 (Pair (Var 50) (Var 51)))
+-- λx . let a = isZero x in a
+isNotZero = Lambda 50 (LetIn 51 (Applic isZero (Var 50)) (Var 51))
 
 a = TRec 50 (TFunction (TVar 50) (TVar 50))
 aArrowA = TFunction a a
 
 main = do
---       print $ typeEquals a aArrowA
-       print $ unify eqs
-       print $ unifyN 1 eqs
-       putStrLn "..."
-       print $ unifyN 20 eqs
+--       print $ typesEqual a aArrowA
+       putStr "Omega\t\t\t\t\t\thas type "
+       print $ typeProgram omegacomb
+       putStr "λx . f (x x)\t\t\t\thas type "
+       print $ typeProgram ycombBody
+       putStr "Y Combinator\t\t\t\thas type "
+       print $ typeProgram ycomb
+       putStr "λx . λy . (x, y)\t\t\thas type "
+       print $ typeProgram toPair
+       putStr "λx . let a = isZero x in a\thas type "
+       print $ typeProgram isNotZero
+--       print $ unifyN 1 eqs
+--       putStrLn "..."
+--       print $ unifyN 20 eqs
        where
-         eqs = toEquationSystem ycomb
---         eqs = toEquationSystem $ Applic (Lambda 20 (Applic isZero (Var 20))) (Const 10)
+         typeProgram = \p -> lookup 0 $ fromMaybe [] $ unify $ toEquationSystem p

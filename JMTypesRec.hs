@@ -7,7 +7,7 @@
 module JMTypesRec (
     Type(TInt, TBool, TVar, TPair, TFunction, TRec),
     Equation, EquationSystem, Mapping, Substitution,
-    unify, isSolved, isSolvedForm, eqSysUnificationStep, typeEquals, eqSysHasVar) where
+    unify, isSolved, isSolvedForm, eqSysUnificationStep, typesEqual, eqSysHasVar) where
 
 import Data.List
 import Data.Maybe
@@ -62,6 +62,9 @@ applyUnificationRule eqs (TVar v, s)                        = if eqSysHasVar v e
 applyUnificationRule eqs (t, TVar v)                        = Just $ (TVar v, t):eqs             -- Exchange
 applyUnificationRule eqs (TPair s1 s2, TPair t1 t2)         = Just $ [(s1, t1), (s2, t2)] ++ eqs -- Decomposition
 applyUnificationRule eqs (TFunction s1 s2, TFunction t1 t2) = Just $ [(s1, t1), (s2, t2)] ++ eqs -- Decomposition
+applyUnificationRule eqs (TRec x1 t, TRec x2 s)             = if typesEqual (TRec x1 t) (TRec x2 s) then Just eqs else Nothing
+applyUnificationRule eqs (TRec x t, s)                      = applyUnificationRule eqs (unroll (TRec x t), s)
+applyUnificationRule eqs (t, TRec x s)                      = applyUnificationRule eqs (t, unroll (TRec x s))
 applyUnificationRule _   _                                  = Nothing
 
 -- Checks if an equation system is in solved form
@@ -174,32 +177,40 @@ varId :: Type -> Int
 varId (TVar x) = x
 varId _ = error "Can't get the identifier of a non var type"
 
--- Check if two types are equal according to the coinductive definition
-typeEquals :: Type -> Type -> Bool
-typeEquals t1 t2 = typeEqualsRec [(t1, t2)] t1 t2
+-- One step unroll a recursive type
+unroll :: Type -> Type
+unroll (TRec x t) = substituteTerm [(x, TRec x t)] t
+unroll t          = t
+
+typesEqual :: Type -> Type -> Bool
+typesEqual t1 t2 = (leftEquals [(t1, t2)] t1 t2) && (leftEquals [(t2, t1)] t2 t1)
 
 -- Check if two types are equal according to the coinductive definition
-typeEqualsRec :: EquationSystem -> Type -> Type -> Bool
-typeEqualsRec rel t1 t2 = if isJust next then let eq = fromJust next in
-                            typeEqualsRec (eq:rel) (fst eq) (snd eq)
-                          else isSolution
-                          where
-                            (next, isSolution) = findNextEq rel t1 t2
-
--- Find next equation missing from a relation to satisfy a given type equality
-findNextEq :: EquationSystem -> Type -> Type -> (Maybe Equation, Bool)
-findNextEq rel TBool TBool                         = (Nothing, True)
-findNextEq rel TInt TInt                           = (Nothing, True)
-findNextEq rel (TPair a1 a2) (TPair b1 b2)         = if not (elem (a1, b1) rel) then (Just (a1, b1), True)
-                                                     else if not (elem (a2, b2) rel) then (Just (a2, b2), True)
-                                                     else (Nothing, True)
-findNextEq rel (TFunction a1 a2) (TFunction b1 b2) = if not (elem (b1, a1) rel) then (Just (b1, a1), True)
-                                                     else if not (elem (a2, b2) rel) then (Just (a2, b2), True)
-                                                     else (Nothing, True)
-findNextEq rel a (TRec x b)                        = if not (elem subst rel) then (Just subst, True)
-                                                     else (Nothing, True)
-                                                     where subst = (a, substituteTerm [(x, TRec x b)] b)
-findNextEq rel (TRec x a) b                        = if not (elem subst rel) then (Just subst, True)
-                                                     else (Nothing, True)
-                                                     where subst = (substituteTerm [(x, TRec x a)] a, b)
-findNextEq _ _ _                                   = (Nothing, False)
+leftEquals :: EquationSystem -> Type -> Type -> Bool
+leftEquals rel TBool TBool                         = True
+leftEquals rel TInt TInt                           = True
+leftEquals rel (TPair a1 a2) (TPair b1 b2)         = if not $ elem (a1, b1) rel then
+                                                       if not $ elem (a2, b2) rel then
+                                                         (leftEquals fullrel a1 b1) && (leftEquals fullrel a2 b2)
+                                                       else leftEquals ((a1, b1):rel) a1 b1
+                                                     else leftEquals ((a2, b2):rel) a2 b2
+                                                     where
+                                                       fullrel = (a1, b1):(a2, b2):rel
+leftEquals rel (TFunction a1 a2) (TFunction b1 b2) = if not $ elem (b1, a1) rel then
+                                                       if not $ elem (a2, b2) rel then
+                                                         (leftEquals fullrel b1 a1) && (leftEquals fullrel a2 b2)
+                                                       else leftEquals ((b1, a1):rel) b1 a1
+                                                     else leftEquals ((a2, b2):rel) a2 b2
+                                                     where
+                                                       fullrel = (b1, a1):(a2, b2):rel
+leftEquals rel a (TRec x b)                        = if not $ elem (a, unrolled) rel then
+                                                       leftEquals ((a, unrolled):rel) a unrolled
+                                                     else True
+                                                     where
+                                                       unrolled = unroll (TRec x b)
+leftEquals rel (TRec x a) b                        = if not $ elem (unrolled, b) rel then
+                                                       leftEquals ((unrolled, b):rel) unrolled b
+                                                     else True
+                                                     where
+                                                       unrolled = unroll (TRec x a)
+leftEquals _ _ _                                   = False
