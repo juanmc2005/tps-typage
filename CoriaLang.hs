@@ -16,6 +16,12 @@ instance Show Type where
     show (TVar v)        = "t" ++ show v
     show (TRec v a)      = "µt" ++ show v ++ ".(" ++ show a ++ ")"
 
+-- Definition of a polymorphic type
+data PolyType = ForEvery [Int] Type deriving Eq
+instance Show PolyType where
+    show (ForEvery (v:vs) t) = "∀t" ++ show v ++ "." ++ show (ForEvery vs t)
+    show (ForEvery [] t)     = show t
+
 -- Definition of an equation
 type Equation = (Type, Type)
 -- Definition of an equation system
@@ -140,12 +146,25 @@ isRecursive _          = False
 -- Check if a type is a type variable
 isVar :: Type -> Bool
 isVar (TVar _) = True
-isVar _ = False
+isVar _        = False
 
 -- Get id for a TVar
 varId :: Type -> Int
 varId (TVar x) = x
 varId _ = error "Can't get the identifier of a non var type"
+
+-- Get free variables in a type given a list of variables to ignore
+freeVarsIgnoring :: [Int] -> Type -> Set Int
+freeVarsIgnoring _ TInt               = Set.empty
+freeVarsIgnoring _ TBool              = Set.empty
+freeVarsIgnoring vs (TVar v)          = if not (elem v vs) then Set.singleton v else Set.empty
+freeVarsIgnoring vs (TPair t1 t2)     = Set.union (freeVarsIgnoring vs t1) (freeVarsIgnoring vs t2)
+freeVarsIgnoring vs (TFunction t1 t2) = Set.union (freeVarsIgnoring vs t1) (freeVarsIgnoring vs t2)
+freeVarsIgnoring vs (TRec v t)        = freeVarsIgnoring (v:vs) t
+
+-- Get free variables in a type
+freeVars :: Type -> Set Int
+freeVars t = freeVarsIgnoring [] t
 
 -- One step unroll a recursive type
 unroll :: Type -> Type
@@ -184,6 +203,7 @@ leftEquals rel (TRec x a) b                        = if not $ elem (unrolled, b)
                                                      else True
                                                      where
                                                        unrolled = unroll (TRec x a)
+leftEquals rel (TVar x) (TVar y)                   = x == y
 leftEquals _ _ _                                   = False
 --------------------------------------------------------------------------------------------------
 
@@ -279,9 +299,15 @@ toEquationSystemRec (n, mem) (LetIn x p1 p2) = ((vp2+1, Set.unions [mem, mem1, m
                                                  mem1 = snd state1
                                                  mem2 = snd state2
 
--- Infer the type of a program
-typeProgram :: Program -> Maybe Type
-typeProgram p = lookup 0 $ fromMaybe [] $ unify $ toEquationSystem p
+-- Get the monomorphic type of a program
+monoType :: Program -> Maybe Type
+monoType p = lookup 0 $ fromMaybe [] $ unify $ toEquationSystem p
+
+-- Infer the polymorphic type of a program
+typeProgram :: Program -> Maybe PolyType
+typeProgram p = let mtype = monoType p in
+                if isJust mtype then let t = fromJust mtype in Just $ ForEvery (Set.toList (freeVars t)) t
+                else Nothing
 --------------------------------------------------------------------------------------------------
 
 ---------------------------------------- Validation Code -----------------------------------------
@@ -294,7 +320,9 @@ ycomb = Lambda 200 (Applic ycombBody ycombBody)
 -- λx . λy . (x, y)
 toPair = Lambda 50 (Lambda 51 (Pair (Var 50) (Var 51)))
 -- λx . let a = isZero x in a
-isNotZero = Lambda 50 (LetIn 51 (Applic isZero (Var 50)) (Var 51))
+isZero2 = Lambda 50 (LetIn 51 (Applic isZero (Var 50)) (Var 51))
+
+ex1 = Lambda 200 (Lambda 201 (Applic (Var 200) (Applic (Var 201) (Var 201))))
 
 -- Some type constants to play around
 a = TRec 50 (TFunction (TVar 50) (TVar 50))
@@ -310,5 +338,5 @@ main = do
        putStr "λx.λy.(x, y)\t\t\t\thas type "
        print $ typeProgram toPair
        putStr "λx.let a = isZero x in a\thas type "
-       print $ typeProgram isNotZero
+       print $ typeProgram isZero2
 --------------------------------------------------------------------------------------------------
