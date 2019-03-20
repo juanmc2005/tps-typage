@@ -1,4 +1,4 @@
-module CoriaLang where
+module Main where
 
 import Data.List
 import Data.Maybe
